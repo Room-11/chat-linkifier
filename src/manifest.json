@@ -1,0 +1,40 @@
+{
+  "name": "PHP manual linkifier",
+  "version": "0.0.0.1",
+  "manifest_version": 2,
+  "description": "Linkify function references in PHP chat",
+  "background": {
+    "scripts": [
+      "PendingMessage.js",
+      "PendingMessageTracker.js",
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://chat.stackoverflow.com/rooms/11/*"
+      ],
+      "js": [
+        "ChromeExtensionRelay.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "*://php.net/*",
+    "*://*.php.net/*"
+  ],
+  "web_accessible_resources": [
+    "ChromeExtensionRelay.js",
+    "QueryString.js",
+    "LinkifyPattern.js",
+    "LinkifiedMessage.js",
+    "inject.js"
+  ]
+}
