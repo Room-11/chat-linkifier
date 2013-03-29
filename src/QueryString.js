@@ -1,6 +1,18 @@
-var QueryString;
+/*jslint plusplus: true, white: true, browser: true, regexp: true */
 
+/**
+ * Map representing a query string
+ */
+var QueryString;
 (function() {
+
+    'use strict';
+
+    /**
+     * Constructor
+     *
+     * @param {string} str Base query string
+     */
     QueryString = function(str)
     {
         var i, l, tokens;
@@ -15,6 +27,9 @@ var QueryString;
         }
     };
 
+    /**
+     * Convert the map to an encoded query string
+     */
     QueryString.prototype.toString = function()
     {
         var key, result = [];
@@ -27,4 +42,5 @@ var QueryString;
 
         return result.join('&');
     };
+
 }());

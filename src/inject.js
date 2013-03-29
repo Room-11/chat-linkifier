@@ -1,4 +1,11 @@
+/*jslint plusplus: true, white: true, browser: true, unparam: true */
+/*global ChromeExtensionRelay, $, LinkifiedMessage */
+
+// Controls the worker injected directly into the scope of the chat page
+
 (function() {
+
+    'use strict';
 
     var pendingMessages = {},
         newMessageExpr = /\/messages\/(?:new|\d+)$/,
@@ -11,7 +18,7 @@
     });
 
     $(document).ajaxSend(function(ev, xhr, opts) {
-        var message, i, l, temp = {};
+        var message;
 
         if (opts.url.match(newMessageExpr)) {
             message = new LinkifiedMessage(opts);

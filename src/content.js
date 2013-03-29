@@ -1,6 +1,8 @@
 /*jslint plusplus: true, white: true, browser: true */
 /*global chrome, ChromeExtensionRelay */
 
+// Intermediary between the worker injected directly into the scope of the chat page and the background page
+
 (function() {
 
     'use strict';

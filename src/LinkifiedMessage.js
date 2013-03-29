@@ -1,14 +1,28 @@
-var LinkifiedMessage;
+/*jslint plusplus: true, white: true, browser: true, regexp: true */
+/*global QueryString, LinkifyPattern, $ */
 
+var LinkifiedMessage;
 (function() {
 
     'use strict';
 
     var lengthLimit, lookupExpr;
 
+    /**
+     * @var {integer} Maximum length of a message
+     */
     lengthLimit = 500;
+
+    /**
+     * @var {RegExp} Pattern used to match lookup candidates
+     */
     lookupExpr = /^((?:`(?=\S)(?![a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*(?:\(\))?`)(?:[^`\\]|\\.)*[^\s`]`|\[`[a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*\(\)`\]|(?![a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*\(\))[^`])*)(?:(^|[^\[])(?:(\b([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)(?!`))|(`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)(?:\(\))?`))(?=$|[^\]]))/i;
 
+    /**
+     * Constructor
+     *
+     * @param {object} ajaxOpts jQuery .ajax() options object from intercepted request
+     */
     LinkifiedMessage = function(ajaxOpts)
     {
         var match, search, display, original, pattern;
@@ -16,7 +30,7 @@ var LinkifiedMessage;
         this.queryString = new QueryString(ajaxOpts.data);
         this.ajaxOpts = ajaxOpts;
 
-        this.id = (new Date()).getTime() + "" + Math.random();
+        this.id = String((new Date()).getTime()) + Math.random();
 
         this.tokens = [];
         this.search = [];
@@ -26,7 +40,8 @@ var LinkifiedMessage;
             this.hasWork = true;
             this.originalTextLength = this.queryString.text.length;
 
-            while (match = this.queryString.text.match(lookupExpr)) {
+            match = this.queryString.text.match(lookupExpr);
+            while (match) {
                 if (match[1] || match[2]) {
                     this.tokens.push(match[1] + match[2]);
                 }
@@ -43,6 +58,7 @@ var LinkifiedMessage;
                 }
 
                 this.queryString.text = this.queryString.text.slice(match[0].length);
+                match = this.queryString.text.match(lookupExpr);
             }
             if (this.queryString.text) {
                 this.tokens.push(this.queryString.text);
@@ -50,20 +66,49 @@ var LinkifiedMessage;
         }
     };
 
+    /**
+     * @var {QueryString} Object representing the raw POST request data
+     */
     LinkifiedMessage.prototype.queryString = null;
 
+    /**
+     * @var {object} jQuery .ajax() options object from intercepted request
+     */
     LinkifiedMessage.prototype.ajaxOpts = null;
 
+    /**
+     * @var {string} Unique identifier for this message
+     */
     LinkifiedMessage.prototype.id = '';
 
+    /**
+     * @var {boolean} Whether the message contains any lookup candidates
+     */
     LinkifiedMessage.prototype.hasWork = false;
 
+    /**
+     * @var {integer} Original length of the message in characters
+     */
     LinkifiedMessage.prototype.originalTextLength = 0;
 
+    /**
+     * @var {Array} Ordered list of tokens in the message
+     */
     LinkifiedMessage.prototype.tokens = null;
 
+    /**
+     * @var {Array} List of lookup patterns in the message
+     */
+    LinkifiedMessage.prototype.search = null;
+
+    /**
+     * @var {object} Map of lookup patterns in the message
+     */
     LinkifiedMessage.prototype.patterns = null;
 
+    /**
+     * @var {string} Process the return value of a lookup
+     */
     LinkifiedMessage.prototype.processLookupResult = function(lookupResult)
     {
         var pattern, i, l, newLength, status = document.querySelector('#chat div.message.pending i');
@@ -71,7 +116,7 @@ var LinkifiedMessage;
         status.parentNode.removeChild(status);
 
         for (pattern in lookupResult) {
-            if (lookupResult[pattern]) {
+            if (lookupResult.hasOwnProperty(pattern) && lookupResult[pattern]) {
                 this.patterns[pattern].processLookupResult(lookupResult[pattern]);
             }
         }
@@ -94,4 +139,5 @@ var LinkifiedMessage;
         this.ajaxOpts.url = this.ajaxOpts.url + '?__linkify';
         $.ajax(this.ajaxOpts);
     };
+
 }());
