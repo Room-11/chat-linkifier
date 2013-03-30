@@ -1,22 +1,79 @@
 /*jslint plusplus: true, white: true, browser: true, regexp: true */
 /*global QueryString, LinkifyPattern, $ */
 
+/**
+ * Represents a message being posted to the chatroom
+ */
 var LinkifiedMessage;
 (function() {
 
     'use strict';
 
-    var lengthLimit, lookupExpr;
+    var lengthLimit, getTokens, addPattern;
+
+    /**
+     * Get a list of tokens in the message
+     */
+    getTokens = function()
+    {
+        var i, l, match,
+            funcExpr = /^(\s*)((`?)([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)\3)$/i,
+            wordExpr = /^(\s*)`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)`$/i,
+            tokens = this.queryString.text.match(/\s*(?:`(?:[^`\\\\]|\\\\.)*`|\S+)/g);
+
+        for (i = 0, l = tokens.length; i < l; i++) {
+            if (funcExpr.test(tokens[i])) {
+                match = tokens[i].match(funcExpr);
+                addPattern.call(this, match[1], match[4], "`" + match[4] + "()`", match[2]);
+            } else if (wordExpr.test(tokens[i])) {
+                match = tokens[i].match(wordExpr);
+                addPattern.call(this, match[1], match[2], "`" + match[2] + "`", "`" + match[2] + "`");
+            } else if (!this.tokens.length || this.tokens[this.tokens.length - 1] instanceof LinkifyPattern) {
+                this.tokens.push(tokens[i]);
+            } else {
+                this.tokens[this.tokens.length - 1] += tokens[i];
+            }
+        }
+    };
+
+    /**
+     * Add a new lookup pattern to the token list
+     *
+     * @param {string} space    Leading space from the token
+     * @param {string} search   The pattern to search for
+     * @param {string} display  The text to display
+     * @param {string} original The original matched text from the message
+     */
+    addPattern = function(space, search, display, original)
+    {
+        var pattern;
+
+        console.log(space);
+        console.log(search);
+        console.log(display);
+        console.log(original);
+
+        if (space.length) {
+            if (!this.tokens.length || this.tokens[this.tokens.length - 1] instanceof LinkifyPattern) {
+                this.tokens.push(space);
+            } else {
+                this.tokens[this.tokens.length - 1] += space;
+            }
+        }
+
+        pattern = new LinkifyPattern(search, display, original);
+
+        this.tokens.push(pattern);
+        if (this.patterns[search] === undefined) {
+            this.search.push(search);
+            this.patterns[search] = pattern;
+        }
+    };
 
     /**
      * @var {integer} Maximum length of a message
      */
     lengthLimit = 500;
-
-    /**
-     * @var {RegExp} Pattern used to match lookup candidates
-     */
-    lookupExpr = /^((?:`(?=\S)(?![a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*(?:\(\))?`)(?:[^`\\]|\\.)*[^\s`]`|\[`[a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*\(\)`\]|(?![a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*\(\))[^`])*)(?:(^|[^\[])(?:(\b([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)(?!`))|(`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)(?:\(\))?`))(?=$|[^\]]))/i;
 
     /**
      * Constructor
@@ -25,9 +82,8 @@ var LinkifiedMessage;
      */
     LinkifiedMessage = function(ajaxOpts)
     {
-        var match, search, display, original, pattern;
-
         this.queryString = new QueryString(ajaxOpts.data);
+        this.originalTextLength = this.queryString.text.length;
         this.ajaxOpts = ajaxOpts;
 
         this.id = String((new Date()).getTime()) + Math.random();
@@ -36,33 +92,8 @@ var LinkifiedMessage;
         this.search = [];
         this.patterns = {};
 
-        if (this.queryString.text && this.queryString.text.indexOf("\n") < 0 && this.queryString.text.match(lookupExpr)) {
-            this.hasWork = true;
-            this.originalTextLength = this.queryString.text.length;
-
-            match = this.queryString.text.match(lookupExpr);
-            while (match) {
-                if (match[1] || match[2]) {
-                    this.tokens.push(match[1] + match[2]);
-                }
-
-                search = match[4] || match[6];
-                display = match[5] || "`" + match[3] + "`";
-                original = match[3] || match[5];
-                pattern = new LinkifyPattern(search, display, original);
-
-                this.tokens.push(pattern);
-                if (this.patterns[search] === undefined) {
-                    this.search.push(search);
-                    this.patterns[search] = pattern;
-                }
-
-                this.queryString.text = this.queryString.text.slice(match[0].length);
-                match = this.queryString.text.match(lookupExpr);
-            }
-            if (this.queryString.text) {
-                this.tokens.push(this.queryString.text);
-            }
+        if (this.queryString.text && this.queryString.text.indexOf("\n") < 0) {
+            getTokens.call(this);
         }
     };
 

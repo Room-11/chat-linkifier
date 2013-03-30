@@ -1,15 +1,36 @@
 /*jslint plusplus: true, white: true, browser: true, unparam: true */
 /*global ChromeExtensionRelay, $, LinkifiedMessage */
 
-// Controls the worker injected directly into the scope of the chat page
-
-(function() {
+/**
+ * Controls the worker injected directly into the scope of the chat page
+ *
+ * Wrapped in setTimeout to allow other injected scripts to load before this is run
+ */
+setTimeout(function() {
 
     'use strict';
 
-    var pendingMessages = {},
-        newMessageExpr = /\/messages\/(?:new|\d+)$/,
-        relay = new ChromeExtensionRelay('linkify');
+    var pendingMessages, newMessageExpr, relay, statusMessage;
+
+    function cleanStatusMessages()
+    {
+        var i, l, status = document.querySelectorAll('#chat div.message.pending i');
+
+        for (i = 0, l = status.length; i < l; i++) {
+            if (status[i].firstChild.data.slice(0, statusMessage.length) === statusMessage) {
+                while (status[i].children.length) {
+                    status[i].removeChild(status[i].children[0]);
+                }
+
+                status[i].firstChild.data = status[i].firstChild.data.replace(/[\s\-]+$/, '');
+            }
+        }
+    }
+
+    pendingMessages = {};
+    newMessageExpr = /\/messages\/(?:new|\d+)$/;
+    relay = new ChromeExtensionRelay('linkify');
+    statusMessage = 'Resolving manual links, please wait...';
 
     relay.onMessage(function(data) {
         if (pendingMessages[data.id] !== undefined) {
@@ -23,22 +44,15 @@
         if (opts.url.match(newMessageExpr)) {
             message = new LinkifiedMessage(opts);
 
-            if (message.hasWork) {
-                xhr.abort('Resolving manual links, please wait...');
+            if (message.search.length) {
                 pendingMessages[message.id] = message;
-                relay.sendMessage({'id': message.id, patterns: message.search});
 
-                setTimeout(function() {
-                    var status = document.querySelector('#chat div.message.pending i');
+                xhr.abort(statusMessage);
+                relay.sendMessage({id: message.id, patterns: message.search});
 
-                    while (status.children.length) {
-                        status.removeChild(status.children[0]);
-                    }
-
-                    status.firstChild.data = status.firstChild.data.replace(/[\s\-]+$/, '');
-                }, 0);
+                setTimeout(cleanStatusMessages, 0);
             }
         }
     });
 
-}());
+}, 500);
