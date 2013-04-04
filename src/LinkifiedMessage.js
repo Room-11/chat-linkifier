@@ -80,8 +80,8 @@ var LinkifiedMessage;
         var i, l, match, modified,
             funcExpr = /^(\s*)((`?)([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)\3)$/i,
             wordExpr = /^(\s*)`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)`$/i,
-            googleExpr = /^(\s*google[ \t]+)"((?:[^"\\\\]|\\\\.)+)"$/i,
-            tokens = this.queryString.text.match(/\s*(?:google[ \t]+"(?:[^"\\\\]|\\\\.)+"|`(?:[^`\\\\]|\\\\.)*`|\S+)/ig);
+            googleExpr = /^(\s*google[ \t]+)"((?:[^"\\]|\\.)+)"$/i,
+            tokens = this.queryString.text.match(/\s*(?:google[ \t]+"(?:[^"\\]|\\.)+"|`(?:[^`\\]|\\.)*`|\S+)/ig);
 
         for (i = 0, l = tokens.length; i < l; i++) {
             if (funcExpr.test(tokens[i])) {
@@ -92,6 +92,7 @@ var LinkifiedMessage;
                 addPattern.call(this, match[1], match[2], "`" + match[2] + "`", "`" + match[2] + "`");
             } else if (googleExpr.test(tokens[i])) {
                 match = tokens[i].match(googleExpr);
+                match[2] = match[2].replace(/\\([\\"])/g, '$1');
                 modified = match[1] + '"[' + match[2] + '](https://google.com/search?q=' + escape(match[2]) + ')"';
 
                 addString.call(this, modified);
