@@ -9,31 +9,24 @@ var LinkifiedMessage;
 
     'use strict';
 
-    var lengthLimit, getTokens, addPattern;
+    var lengthLimit, getTokens, addPattern, addString, stringifyTokens;
 
-    /**
-     * Get a list of tokens in the message
-     */
-    getTokens = function()
+    stringifyTokens = function()
     {
-        var i, l, match,
-            funcExpr = /^(\s*)((`?)([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)\3)$/i,
-            wordExpr = /^(\s*)`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)`$/i,
-            tokens = this.queryString.text.match(/\s*(?:`(?:[^`\\\\]|\\\\.)*`|\S+)/g);
+        var i, l, result = '', newLength = this.originalTextLength;
 
-        for (i = 0, l = tokens.length; i < l; i++) {
-            if (funcExpr.test(tokens[i])) {
-                match = tokens[i].match(funcExpr);
-                addPattern.call(this, match[1], match[4], "`" + match[4] + "()`", match[2]);
-            } else if (wordExpr.test(tokens[i])) {
-                match = tokens[i].match(wordExpr);
-                addPattern.call(this, match[1], match[2], "`" + match[2] + "`", "`" + match[2] + "`");
-            } else if (!this.tokens.length || this.tokens[this.tokens.length - 1] instanceof LinkifyPattern) {
-                this.tokens.push(tokens[i]);
+        for (i = 0, l = this.tokens.length; i < l; i++) {
+            if (typeof this.tokens[i] === 'string') {
+                result += this.tokens[i];
+            } else if (newLength + this.tokens[i].linkified.length <= lengthLimit) {
+                result += this.tokens[i].linkified;
+                newLength += this.tokens[i].linkified.length - this.tokens[i].original.length;
             } else {
-                this.tokens[this.tokens.length - 1] += tokens[i];
+                result += this.tokens[i].original;
             }
         }
+
+        return result;
     };
 
     /**
@@ -47,11 +40,6 @@ var LinkifiedMessage;
     addPattern = function(space, search, display, original)
     {
         var pattern;
-
-        console.log(space);
-        console.log(search);
-        console.log(display);
-        console.log(original);
 
         if (space.length) {
             if (!this.tokens.length || this.tokens[this.tokens.length - 1] instanceof LinkifyPattern) {
@@ -67,6 +55,52 @@ var LinkifiedMessage;
         if (this.patterns[search] === undefined) {
             this.search.push(search);
             this.patterns[search] = pattern;
+        }
+    };
+
+    /**
+     * Add a string literal to the token list
+     *
+     * @param {string} str String to add
+     */
+    addString = function(str)
+    {
+        if (!this.tokens.length || this.tokens[this.tokens.length - 1] instanceof LinkifyPattern) {
+            this.tokens.push(str);
+        } else {
+            this.tokens[this.tokens.length - 1] += str;
+        }
+    };
+
+    /**
+     * Get a list of tokens in the message
+     */
+    getTokens = function()
+    {
+        var i, l, match, modified,
+            funcExpr = /^(\s*)((`?)([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)\(\)\3)$/i,
+            wordExpr = /^(\s*)`([a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*)`$/i,
+            googleExpr = /^(\s*google[ \t]+)"((?:[^"\\\\]|\\\\.)+)"$/i,
+            tokens = this.queryString.text.match(/\s*(?:google[ \t]+"(?:[^"\\\\]|\\\\.)+"|`(?:[^`\\\\]|\\\\.)*`|\S+)/ig);
+
+        for (i = 0, l = tokens.length; i < l; i++) {
+            if (funcExpr.test(tokens[i])) {
+                match = tokens[i].match(funcExpr);
+                addPattern.call(this, match[1], match[4], "`" + match[4] + "()`", match[2]);
+            } else if (wordExpr.test(tokens[i])) {
+                match = tokens[i].match(wordExpr);
+                addPattern.call(this, match[1], match[2], "`" + match[2] + "`", "`" + match[2] + "`");
+            } else if (googleExpr.test(tokens[i])) {
+                match = tokens[i].match(googleExpr);
+                modified = match[1] + '"[' + match[2] + '](https://google.com/search?q=' + escape(match[2]) + ')"';
+
+                addString.call(this, modified);
+
+                this.originalTextLength += modified.length - match[0].length;
+                this.modified = true;
+            } else {
+                addString.call(this, tokens[i]);
+            }
         }
     };
 
@@ -94,6 +128,11 @@ var LinkifiedMessage;
 
         if (this.queryString.text && this.queryString.text.indexOf("\n") < 0) {
             getTokens.call(this);
+
+            if (this.modified) {
+                this.queryString.text = stringifyTokens.call(this);
+                this.ajaxOpts.data = this.queryString.toString();
+            }
         }
     };
 
@@ -113,9 +152,9 @@ var LinkifiedMessage;
     LinkifiedMessage.prototype.id = '';
 
     /**
-     * @var {boolean} Whether the message contains any lookup candidates
+     * @var {boolean} Whether the message has been modified
      */
-    LinkifiedMessage.prototype.hasWork = false;
+    LinkifiedMessage.prototype.modified = false;
 
     /**
      * @var {integer} Original length of the message in characters
@@ -142,7 +181,7 @@ var LinkifiedMessage;
      */
     LinkifiedMessage.prototype.processLookupResult = function(lookupResult)
     {
-        var pattern, i, l, newLength, status = document.querySelector('#chat div.message.pending i');
+        var pattern, status = document.querySelector('#chat div.message.pending i');
 
         status.parentNode.removeChild(status);
 
@@ -152,20 +191,7 @@ var LinkifiedMessage;
             }
         }
 
-        this.queryString.text = '';
-        newLength = this.originalTextLength;
-
-        for (i = 0, l = this.tokens.length; i < l; i++) {
-            if (typeof this.tokens[i] === 'string') {
-                this.queryString.text += this.tokens[i];
-            } else if (newLength + this.tokens[i].linkified.length <= lengthLimit) {
-                this.queryString.text += this.tokens[i].linkified;
-                newLength += this.tokens[i].linkified.length - this.tokens[i].original.length;
-            } else {
-                this.queryString.text += this.tokens[i].original;
-            }
-        }
-
+        this.queryString.text = stringifyTokens.call(this);
         this.ajaxOpts.data = this.queryString.toString();
         this.ajaxOpts.url = this.ajaxOpts.url + '?__linkify';
         $.ajax(this.ajaxOpts);

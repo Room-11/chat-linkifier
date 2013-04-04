@@ -1,6 +1,6 @@
 {
   "name": "PHP manual linkifier",
-  "version": "0.0.0.3",
+  "version": "0.0.0.4",
   "manifest_version": 2,
   "description": "Linkify function references in PHP chat",
   "background": {
@@ -38,5 +38,6 @@
     "LinkifyPattern.js",
     "LinkifiedMessage.js",
     "inject.js"
-  ]
+  ],
+  "update_url": "https://github.com/DaveRandom/chat-linkifier/raw/master/update.xml"
 }
