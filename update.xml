@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
   <app appid='bbcchakdibhbpohaijicghlalapnpbjk'>
-    <updatecheck codebase='https://github.com/DaveRandom/chat-linkifier/raw/master/chat-linkifier-0.0.0.5.crx' version='0.0.0.5' />
+    <updatecheck codebase='https://github.com/DaveRandom/chat-linkifier/raw/master/chat-linkifier-0.0.0.6.crx' version='0.0.0.6' />
   </app>
 </gupdate>
